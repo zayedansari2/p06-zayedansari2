@@ -298,6 +298,9 @@ class Transformer:
             )
             crop_height = source_height
 
+        crop_width = max(crop_width, 1)
+        crop_height = max(crop_height, 1)
+
         crop_left = int(
             round(
                 min(
@@ -355,25 +358,29 @@ class Transformer:
 
     def fit_in_resize(self):
         source_width, source_height = self.engine.size
+        target_width = self.target_width or 1
+        target_height = self.target_height or 1
 
         # invert width and height if image orientation is not the
         # same as request orientation and need adaptive
         if self.context.request.adaptive and (
             (
                 source_width < source_height
-                and self.target_width > self.target_height
+                and target_width > target_height
             )
             or (
                 source_width > source_height
-                and self.target_width < self.target_height
+                and target_width < target_height
             )
         ):
             tmp = self.context.request.width
             self.context.request.width = self.context.request.height
             self.context.request.height = tmp
-            tmp = self.target_width
-            self.target_width = self.target_height
-            self.target_height = tmp
+            target_width, target_height = target_height, target_width
+            self.target_width, self.target_height = (
+                self.target_height,
+                self.target_width,
+            )
 
         sign = 1
         if self.context.request.full:
@@ -381,25 +388,28 @@ class Transformer:
 
         if (
             sign == 1
-            and self.target_width >= source_width
-            and self.target_height >= source_height
+            and target_width >= source_width
+            and target_height >= source_height
         ):
             return
 
         # add 1e-5 to get .5 rounding up in Python3 as it was in Python2
         if (
-            source_width / self.target_width * sign
-            >= source_height / self.target_height * sign
+            source_width / target_width * sign
+            >= source_height / target_height * sign
         ):
             resize_height = round(
-                source_height * self.target_width / source_width + 1e-5
+                source_height * target_width / source_width + 1e-5
             )
-            resize_width = self.target_width
+            resize_width = target_width
         else:
-            resize_height = self.target_height
+            resize_height = target_height
             resize_width = round(
-                source_width * self.target_height / source_height + 1e-5
+                source_width * target_height / source_height + 1e-5
             )
+
+        resize_width = max(resize_width, 1)
+        resize_height = max(resize_height, 1)
 
         # ensure that filter should work on the real image size
         # and not on the request size which might be smaller than the
