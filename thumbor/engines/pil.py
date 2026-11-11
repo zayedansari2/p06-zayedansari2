@@ -278,6 +278,26 @@ class Engine(BaseEngine):
                 )
                 self.image = self.image.quantize(method=quantize_method)
 
+                # quantize() keeps alpha in the palette but does not set
+                # info["transparency"], so the GIF writer drops it. PNG
+                # encodes the palette alpha itself, so only GIF needs it.
+                if (
+                    requested_extension == ".gif"
+                    and self.image.mode == "P"
+                    and "transparency" not in self.image.info
+                ):
+                    palette = self.image.getpalette("RGBA") or []
+                    used = {
+                        index for _, index in self.image.getcolors(256) or []
+                    }
+                    for index in sorted(used):
+                        if (
+                            len(palette) > index * 4 + 3
+                            and palette[index * 4 + 3] == 0
+                        ):
+                            self.image.info["transparency"] = index
+                            break
+
         ext = requested_extension or self.get_default_extension()
 
         if ext in (".heic", ".heif") and not HAVE_HEIF:
