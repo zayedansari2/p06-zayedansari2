@@ -290,6 +290,30 @@ class PilEngineTestCase(TestCase):
 
         assert transparent_pixels_count > 19000
 
+    def test_should_preserve_gif_transparency(self):
+        engine = Engine(self.context)
+        sticker_path = join(
+            dirname(__file__), "../../course/images/sticker.gif"
+        )
+        with open(sticker_path, "rb") as image_file:
+            buffer = image_file.read()
+
+        engine.load(buffer, ".gif")
+        assert engine.original_mode == "P"
+        engine.resize(240, 160)
+
+        img = Image.open(BytesIO(engine.read(".gif")))
+
+        assert img.format.lower() == "gif"
+        assert "transparency" in img.info
+
+        transparent_pixels_count = sum(
+            1
+            for alpha in img.convert("RGBA").getchannel("A").getdata()
+            if alpha == 0
+        )
+        assert transparent_pixels_count > 0
+
     @skip_unless_avif
     def test_convert_jpg_to_avif(self):
         engine = Engine(self.context)
